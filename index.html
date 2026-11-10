@@ -8,10 +8,12 @@ body{font:16px/1.6 system-ui,sans-serif;max-width:640px;margin:24px auto;padding
 textarea,button,select{font:inherit;box-sizing:border-box}textarea{width:100%;padding:10px}button{padding:10px 16px;margin:8px 8px 8px 0}p{margin:10px 0}#events{white-space:pre-wrap;font-size:13px;max-height:240px;overflow:auto;background:white;padding:12px}
 </style>
 <h1>网页入口观察</h1>
-<p>研究分屏中持续刷新位置的请求顺序。每轮先等待 WGS84 返回，再请求 GCJ02；完成一对后等十秒，最多两分钟。失败或明确命中缓存时停止循环，必要时尝试一次 GCJ02 收尾。记录不保存经纬度；请求完成不代表另一侧微信地图已更新。</p>
+<p>研究分屏中持续刷新位置的请求顺序。每轮先等待 WGS84 返回，再请求 GCJ02；完成一对后等十秒，最多两分钟。失败或明确命中缓存时停止循环，必要时尝试一次 GCJ02 收尾。请求完成不代表另一侧微信地图已更新。</p>
 <p id="environment">正在确认小程序网页环境。</p>
 <p id="permission">网页定位权限尚未验证。</p>
 <p id="state"></p>
+<p id="position" aria-live="polite">尚未收到定位坐标。</p>
+<p>本页显示最近收到的坐标，并在当前页面内存中保留回调记录，可手动导出；页面不另行上传记录。接收时间不是定位采样时间，迟到或重复回调也会原样留在记录中。</p>
 <details>
   <summary>配置网页授权</summary>
   <p>粘贴自有服务为当前网页生成的 JS-SDK 授权信息。仅需 appId、timestamp、nonceStr、signature；不要粘贴 AppSecret 或 jsapi_ticket。</p>

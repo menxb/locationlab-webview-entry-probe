@@ -2,16 +2,37 @@ import { createProbe, createRefreshController } from "./engine.mjs";
 
 const el = id => document.getElementById(id);
 const events = [];
+const positionReceipts = [];
+let requestSequence = 0;
 const clockAnchor = { wall_ms: Date.now(), performance_ms: performance.now() };
 let miniapp = false;
 let configured = false;
 let bridgePageState;
 function createController(serial) {
   const build = serial ? createRefreshController : createProbe;
-  const locate = (type, done) => wx.getLocation({
-    type, success: result => done("success", result),
-    fail: result => done("fail", result), cancel: result => done("cancel", result),
-  });
+  const locate = (type, done) => {
+    const requestId = ++requestSequence;
+    const requestedMs = performance.now();
+    wx.getLocation({
+      type,
+      success: result => {
+        const receipt = {
+          request_id: requestId,
+          requested_type: type,
+          requested_ms: requestedMs,
+          received_ms: performance.now(),
+          received_wall_ms: Date.now(),
+          page_visible_at_receipt: document.visibilityState === "visible",
+          result: { ...result },
+        };
+        positionReceipts.push(receipt);
+        const label = type === "gcj02" ? "地图坐标（GCJ02）" : "原始坐标（WGS84）";
+        el("position").textContent = `${label}：纬度 ${result.latitude}，经度 ${result.longitude}。这是本页最近一次收到的回调，接收时间为 ${new Date(receipt.received_wall_ms).toLocaleTimeString()}。`;
+        done("success", result);
+      },
+      fail: result => done("fail", result), cancel: result => done("cancel", result),
+    });
+  };
   return build({
   now: () => performance.now(),
   schedule: (fn, ms) => setTimeout(fn, ms),
@@ -88,8 +109,8 @@ el("start").onclick = () => probe.start();
 el("stop").onclick = () => probe.stop("user");
 el("export").onclick = () => {
   el("report").value = JSON.stringify({
-    schema: "locationlab.webview-entry.v1",
-    scope: "THIS_WEBPAGE_ENTRY_AND_LIFECYCLE_ONLY",
+    schema: "locationlab.webview-entry.v2",
+    scope: "THIS_WEBVIEW_CALL_RESULTS_AND_LIFECYCLE_ONLY",
     clock_anchor: clockAnchor,
     miniapp_environment: miniapp,
     jssdk_config_ready: configured,
@@ -98,6 +119,8 @@ el("export").onclick = () => {
     position_freshness: "NOT_ASSESSED",
     location_adoption: "NOT_ASSESSED",
     compatibility_fix_verified: false,
+    receipt_semantics: "RAW_SUCCESS_CALLBACKS_INCLUDING_LATE_OR_DUPLICATE; RECEIPT_TIME_IS_NOT_SAMPLE_TIME",
+    position_receipts: positionReceipts,
     events,
   }, null, 2);
 };
