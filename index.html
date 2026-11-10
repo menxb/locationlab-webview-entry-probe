@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>网页入口观察</title>
+<style>
+body{font:16px/1.6 system-ui,sans-serif;max-width:640px;margin:24px auto;padding:0 16px;color:#18242b;background:#f5f7f8}
+textarea,button{font:inherit;box-sizing:border-box}textarea{width:100%;padding:10px}button{padding:10px 16px;margin:8px 8px 8px 0}p{margin:10px 0}#events{white-space:pre-wrap;font-size:13px;max-height:240px;overflow:auto;background:white;padding:12px}
+</style>
+<h1>网页入口观察</h1>
+<p>观察这个网页能否在分屏中继续调用定位。每次最多两分钟；收到回调后等待十秒再请求。仅请求 GCJ02，记录中不保存经纬度。</p>
+<p id="environment">正在确认小程序网页环境。</p>
+<p id="permission">网页定位权限尚未验证。</p>
+<p id="state"></p>
+<details>
+  <summary>配置网页授权</summary>
+  <p>粘贴自有服务为当前网页生成的 JS-SDK 授权信息。仅需 appId、timestamp、nonceStr、signature；不要粘贴 AppSecret 或 jsapi_ticket。</p>
+  <textarea id="config" rows="5" aria-label="网页授权信息"></textarea>
+  <button id="configure" disabled>验证网页授权</button>
+</details>
+<button id="start" disabled>开始两分钟观察</button>
+<button id="stop">停止</button>
+<p>失去输入焦点时继续观察；网页隐藏或收到后台状态时停止后续请求。在途请求可能稍后回调。前台状态提示未收到时记为“未知”。</p>
+<pre id="events"></pre>
+<button id="export">显示可复制记录</button>
+<textarea id="report" rows="8" readonly aria-label="可复制记录"></textarea>
+<p>这里只观察当前网页。另一侧地图是否处于前台、位置是否更新，以及定位样本是否新鲜，需要另外验证。</p>
+<script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
+<script type="module" src="./page.mjs"></script>
+</html>
