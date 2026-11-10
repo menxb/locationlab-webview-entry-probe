@@ -1,27 +1,39 @@
-import { createProbe } from "./engine.mjs";
+import { createProbe, createRefreshController } from "./engine.mjs";
 
 const el = id => document.getElementById(id);
 const events = [];
 const clockAnchor = { wall_ms: Date.now(), performance_ms: performance.now() };
 let miniapp = false;
 let configured = false;
-const probe = createProbe({
+let bridgePageState;
+function createController(serial) {
+  const build = serial ? createRefreshController : createProbe;
+  const locate = (type, done) => wx.getLocation({
+    type, success: result => done("success", result),
+    fail: result => done("fail", result), cancel: result => done("cancel", result),
+  });
+  return build({
   now: () => performance.now(),
   schedule: (fn, ms) => setTimeout(fn, ms),
   cancel: id => clearTimeout(id),
-  request: done => wx.getLocation({
-    type: "gcj02",
-    success: result => done("success", result),
-    fail: result => done("fail", result),
-    cancel: result => done("cancel", result),
-  }),
+  request: serial ? locate : done => locate("gcj02", done),
   record: event => {
     events.push(event);
+    el("mode").disabled = event.running || event.pending || event.restore_required === true;
     el("events").textContent = events.slice(-12).map(row => JSON.stringify(row)).join("\n");
     const active = event.active === null ? "未知" : event.active ? "前台" : "后台";
     el("state").textContent = `网页${event.visible ? "可见" : "隐藏"}；${event.focused ? "有输入焦点" : "无输入焦点"}；页面状态提示：${active}。`;
   },
-});
+  });
+}
+let probe = createController(true);
+el("mode").onchange = () => {
+  probe.stop("mode_change");
+  probe = createController(el("mode").value === "serial");
+  probe.visibility(document.visibilityState === "visible");
+  probe.focus(document.hasFocus());
+  probe.pageState(bridgePageState);
+};
 
 probe.visibility(document.visibilityState === "visible");
 probe.focus(document.hasFocus());
@@ -31,7 +43,7 @@ window.addEventListener("blur", () => probe.focus(false));
 window.addEventListener("pagehide", () => probe.stop("pagehide"));
 
 function bridgeReady() {
-  WeixinJSBridge.on("onPageStateChange", result => probe.pageState(result.active));
+  WeixinJSBridge.on("onPageStateChange", result => { bridgePageState = result.active; probe.pageState(result.active); });
   wx.miniProgram.getEnv(result => {
     miniapp = result.miniprogram === true;
     events.push({ event: "environment", ms: performance.now(), miniapp });
@@ -81,6 +93,7 @@ el("export").onclick = () => {
     clock_anchor: clockAnchor,
     miniapp_environment: miniapp,
     jssdk_config_ready: configured,
+    selected_mode: el("mode").value,
     map_foreground: "NOT_OBSERVED",
     position_freshness: "NOT_ASSESSED",
     location_adoption: "NOT_ASSESSED",

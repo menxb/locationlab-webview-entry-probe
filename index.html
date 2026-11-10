@@ -5,10 +5,10 @@
 <title>网页入口观察</title>
 <style>
 body{font:16px/1.6 system-ui,sans-serif;max-width:640px;margin:24px auto;padding:0 16px;color:#18242b;background:#f5f7f8}
-textarea,button{font:inherit;box-sizing:border-box}textarea{width:100%;padding:10px}button{padding:10px 16px;margin:8px 8px 8px 0}p{margin:10px 0}#events{white-space:pre-wrap;font-size:13px;max-height:240px;overflow:auto;background:white;padding:12px}
+textarea,button,select{font:inherit;box-sizing:border-box}textarea{width:100%;padding:10px}button{padding:10px 16px;margin:8px 8px 8px 0}p{margin:10px 0}#events{white-space:pre-wrap;font-size:13px;max-height:240px;overflow:auto;background:white;padding:12px}
 </style>
 <h1>网页入口观察</h1>
-<p>观察这个网页能否在分屏中继续调用定位。每次最多两分钟；收到回调后等待十秒再请求。仅请求 GCJ02，记录中不保存经纬度。</p>
+<p>研究分屏中持续刷新位置的请求顺序。每轮先等待 WGS84 返回，再请求 GCJ02；完成一对后等十秒，最多两分钟。失败或明确命中缓存时停止循环，必要时尝试一次 GCJ02 收尾。记录不保存经纬度；请求完成不代表另一侧微信地图已更新。</p>
 <p id="environment">正在确认小程序网页环境。</p>
 <p id="permission">网页定位权限尚未验证。</p>
 <p id="state"></p>
@@ -18,9 +18,10 @@ textarea,button{font:inherit;box-sizing:border-box}textarea{width:100%;padding:1
   <textarea id="config" rows="5" aria-label="网页授权信息"></textarea>
   <button id="configure" disabled>验证网页授权</button>
 </details>
-<button id="start" disabled>开始两分钟观察</button>
+<p><label>操作：<select id="mode"><option value="serial">持续刷新研究</option><option value="baseline">只观察 GCJ02（对照）</option></select></label></p>
+<button id="start" disabled>开始两分钟运行</button>
 <button id="stop">停止</button>
-<p>失去输入焦点时继续观察；网页隐藏或收到后台状态时停止后续请求。在途请求可能稍后回调。前台状态提示未收到时记为“未知”。</p>
+<p>失去输入焦点时继续；网页隐藏或收到后台状态时停止。若隐藏期间尚有 WGS84 请求，重新显示后点击开始会先尝试 GCJ02 收尾，再由你决定是否开始新一轮。前台提示缺失时记为“未知”。</p>
 <pre id="events"></pre>
 <button id="export">显示可复制记录</button>
 <textarea id="report" rows="8" readonly aria-label="可复制记录"></textarea>
