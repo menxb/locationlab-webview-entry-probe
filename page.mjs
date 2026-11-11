@@ -105,6 +105,11 @@ el("configure").onclick = () => {
     el("start").disabled = !miniapp;
   });
 };
+const linkedConfig = new URLSearchParams(location.hash.slice(1)).get("wxconfig");
+if (linkedConfig !== null) {
+  el("config").value = linkedConfig;
+  el("configure").click();
+}
 el("start").onclick = () => probe.start();
 el("stop").onclick = () => probe.stop("user");
 el("export").onclick = () => {
