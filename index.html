@@ -11,6 +11,7 @@ textarea,button,select{font:inherit;box-sizing:border-box}textarea{width:100%;pa
 <p>研究分屏中持续刷新位置的请求顺序。每轮先等待 WGS84 返回，再请求 GCJ02；完成一对后等十秒，最多两分钟。失败或明确命中缓存时停止循环，必要时尝试一次 GCJ02 收尾。请求完成不代表另一侧微信地图已更新。</p>
 <p id="environment">正在确认小程序网页环境。</p>
 <p id="permission">网页定位权限尚未验证。</p>
+<p id="computer" hidden></p>
 <p id="state"></p>
 <p id="position" aria-live="polite">尚未收到定位坐标。</p>
 <p>本页显示最近收到的坐标，并在当前页面内存中保留回调记录，可手动导出；页面不另行上传记录。接收时间不是定位采样时间，迟到或重复回调也会原样留在记录中。</p>
@@ -29,5 +30,5 @@ textarea,button,select{font:inherit;box-sizing:border-box}textarea{width:100%;pa
 <textarea id="report" rows="8" readonly aria-label="可复制记录"></textarea>
 <p>这里只观察当前网页。另一侧地图是否处于前台、位置是否更新，以及定位样本是否新鲜，需要另外验证。</p>
 <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
-<script type="module" src="./page.mjs?v=20261111-linked-auth"></script>
+<script type="module" src="./page.mjs?v=20261112-computer-run"></script>
 </html>

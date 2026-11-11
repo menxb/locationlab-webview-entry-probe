@@ -1,6 +1,9 @@
 import { createProbe, createRefreshController } from "./engine.mjs";
 
 const el = id => document.getElementById(id);
+const entryOptions = new URLSearchParams(location.hash.slice(1));
+const computerRun = entryOptions.get("computer");
+let computerStarted = false;
 const events = [];
 const positionReceipts = [];
 let requestSequence = 0;
@@ -70,6 +73,7 @@ function bridgeReady() {
     events.push({ event: "environment", ms: performance.now(), miniapp });
     el("environment").textContent = miniapp ? "已确认在小程序内嵌网页中。" : "当前不是小程序内嵌网页，请通过自有小程序打开。";
     el("start").disabled = !(miniapp && configured);
+    startComputerRun();
   });
 }
 if (window.wx) {
@@ -103,17 +107,14 @@ el("configure").onclick = () => {
     events.push({ event: "config_ready", ms: performance.now() });
     el("permission").textContent = "JS-SDK 配置验证已返回就绪；定位权限以实际调用结果为准。";
     el("start").disabled = !miniapp;
+    startComputerRun();
   });
 };
-const linkedConfig = new URLSearchParams(location.hash.slice(1)).get("wxconfig");
-if (linkedConfig !== null) {
-  el("config").value = linkedConfig;
-  el("configure").click();
-}
+const linkedConfig = entryOptions.get("wxconfig");
 el("start").onclick = () => probe.start();
 el("stop").onclick = () => probe.stop("user");
-el("export").onclick = () => {
-  el("report").value = JSON.stringify({
+function snapshot() {
+  return {
     schema: "locationlab.webview-entry.v2",
     scope: "THIS_WEBVIEW_CALL_RESULTS_AND_LIFECYCLE_ONLY",
     clock_anchor: clockAnchor,
@@ -127,5 +128,28 @@ el("export").onclick = () => {
     receipt_semantics: "RAW_SUCCESS_CALLBACKS_INCLUDING_LATE_OR_DUPLICATE; RECEIPT_TIME_IS_NOT_SAMPLE_TIME",
     position_receipts: positionReceipts,
     events,
-  }, null, 2);
+  };
+}
+el("export").onclick = () => {
+  el("report").value = JSON.stringify(snapshot(), null, 2);
 };
+
+function startComputerRun() {
+  if (!["serial", "stop"].includes(computerRun) || computerStarted || !miniapp || !configured) return;
+  computerStarted = true;
+  el("computer").hidden = false;
+  el("computer").textContent = "本次为电脑自动运行，结束后向自有小程序交回定位回调和请求记录。";
+  events.push({ event: "computer_run", ms: performance.now(), kind: computerRun });
+  el("start").click();
+  if (computerRun === "stop") setTimeout(() => el("stop").click(), 25000);
+  setTimeout(() => {
+    const report = snapshot();
+    el("report").value = JSON.stringify(report, null, 2);
+    wx.miniProgram.postMessage({ data: report });
+    el("computer").textContent = "电脑运行记录已交回自有小程序；定位样本新鲜度和微信地图采用仍需独立验证。";
+  }, computerRun === "stop" ? 40000 : 135000);
+}
+if (linkedConfig !== null) {
+  el("config").value = linkedConfig;
+  el("configure").click();
+}
