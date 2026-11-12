@@ -15,6 +15,26 @@ let configured = false;
 let configurationFailed = false;
 let bridgePageState;
 const canStart = () => configured && (miniapp || webDebuggerEntry);
+function updateWebDebuggerSummary() {
+  if (!webDebuggerEntry) return;
+  el("computer").hidden = false;
+  let start = -1;
+  events.forEach((row, i) => { if (row.event === "start") start = i; });
+  if (start < 0) {
+    el("computer").textContent = "本轮尚未开始；授权与定位结果以实际调用记录为准。";
+    return;
+  }
+  const session = events.slice(start);
+  const requests = session.filter(row => row.event === "request").length;
+  const successes = positionReceipts.filter(row => row.requested_ms >= session[0].ms).length;
+  const stop = session.find(row => row.event === "stop");
+  const states = session.filter(row => typeof row.running === "boolean");
+  const state = states[states.length - 1];
+  const reasons = { budget: "达到两分钟，已停止", user: "已手动停止",
+    document_hidden: "网页隐藏，已停止", bridge_background: "收到后台状态，已停止" };
+  const status = state.running ? "运行中" : reasons[stop?.reason] || "已停止，原因见下方记录";
+  el("computer").textContent = `当前这一轮已发出 ${requests} 次请求，收到 ${successes} 次成功回调；${status}${state.pending ? "；仍有请求等待返回" : ""}。记录留在本页，未上传。小程序采用尚未验证。`;
+}
 function createController(serial) {
   const build = serial ? createRefreshController : createProbe;
   const locate = (type, done) => {
@@ -51,6 +71,7 @@ function createController(serial) {
     el("events").textContent = events.slice(-12).map(row => JSON.stringify(row)).join("\n");
     const active = event.active === null ? "未知" : event.active ? "前台" : "后台";
     el("state").textContent = `网页${event.visible ? "可见" : "隐藏"}；${event.focused ? "有输入焦点" : "无输入焦点"}；页面状态提示：${active}。`;
+    updateWebDebuggerSummary();
   },
   });
 }
@@ -129,6 +150,7 @@ function snapshot() {
     schema: "locationlab.webview-entry.v2",
     scope: "THIS_WEBVIEW_CALL_RESULTS_AND_LIFECYCLE_ONLY",
     clock_anchor: clockAnchor,
+    captured_at: { wall_ms: Date.now(), performance_ms: performance.now() },
     miniapp_environment: miniapp,
     entry_mode: webDebuggerEntry ? "EXPLICIT_WEB_DEBUGGER_DIAGNOSTIC" : "MINIAPP_ENTRY",
     jssdk_config_ready: configured,
@@ -144,6 +166,7 @@ function snapshot() {
 }
 el("export").onclick = () => {
   el("report").value = JSON.stringify(snapshot(), null, 2);
+  updateWebDebuggerSummary();
 };
 
 function startComputerRun() {
@@ -161,7 +184,8 @@ function sendComputerReport() {
   el("report").value = JSON.stringify(report, null, 2);
   if (miniapp) wx.miniProgram.postMessage({ data: report });
   el("computer").hidden = false;
-  el("computer").textContent = miniapp ? "电脑观察记录已交回自有小程序；定位样本新鲜度和微信地图采用仍需独立验证。" : `公众号网页本次已发出 ${requestSequence} 次请求，收到 ${positionReceipts.length} 次成功回调；原始记录留在下方，未上传。小程序采用尚未验证。`;
+  if (miniapp) el("computer").textContent = "电脑观察记录已交回自有小程序；定位样本新鲜度和微信地图采用仍需独立验证。";
+  else updateWebDebuggerSummary();
 }
 if (linkedConfig !== null) {
   el("config").value = linkedConfig;
