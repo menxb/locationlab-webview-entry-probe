@@ -10,6 +10,7 @@ let requestSequence = 0;
 const clockAnchor = { wall_ms: Date.now(), performance_ms: performance.now() };
 let miniapp = false;
 let configured = false;
+let configurationFailed = false;
 let bridgePageState;
 function createController(serial) {
   const build = serial ? createRefreshController : createProbe;
@@ -81,12 +82,14 @@ if (window.wx) {
   if (window.WeixinJSBridge) bridgeReady();
   else document.addEventListener("WeixinJSBridgeReady", bridgeReady, { once: true });
   wx.error(result => {
+    configurationFailed = true;
     configured = false;
     el("start").disabled = true;
     el("configure").disabled = false;
     probe.stop("config_error");
     events.push({ event: "config_error", ms: performance.now(), errMsg: result.errMsg });
     el("permission").textContent = result.errMsg;
+    if (miniapp && ["serial", "stop"].includes(computerRun)) setTimeout(sendComputerReport, 0);
   });
 } else {
   el("permission").textContent = "微信 JS-SDK 未能加载。";
@@ -97,12 +100,17 @@ el("configure").onclick = () => {
   try { config = JSON.parse(el("config").value); }
   catch { el("permission").textContent = "授权信息不是有效的 JSON。"; return; }
   configured = false;
+  configurationFailed = false;
   el("configure").disabled = true;
   el("start").disabled = true;
   probe.stop("reconfigure");
   const { appId, timestamp, nonceStr, signature } = config;
   wx.config({ appId, timestamp, nonceStr, signature, debug: false, jsApiList: ["getLocation"] });
   wx.ready(() => {
+    if (configurationFailed) {
+      events.push({ event: "config_ready_ignored_after_error", ms: performance.now() });
+      return;
+    }
     configured = true;
     events.push({ event: "config_ready", ms: performance.now() });
     el("permission").textContent = "JS-SDK 配置验证已返回就绪；定位权限以实际调用结果为准。";
@@ -142,12 +150,14 @@ function startComputerRun() {
   events.push({ event: "computer_run", ms: performance.now(), kind: computerRun });
   el("start").click();
   if (computerRun === "stop") setTimeout(() => el("stop").click(), 25000);
-  setTimeout(() => {
-    const report = snapshot();
-    el("report").value = JSON.stringify(report, null, 2);
-    wx.miniProgram.postMessage({ data: report });
-    el("computer").textContent = "电脑运行记录已交回自有小程序；定位样本新鲜度和微信地图采用仍需独立验证。";
-  }, computerRun === "stop" ? 40000 : 135000);
+  setTimeout(sendComputerReport, computerRun === "stop" ? 40000 : 135000);
+}
+function sendComputerReport() {
+  const report = snapshot();
+  el("report").value = JSON.stringify(report, null, 2);
+  wx.miniProgram.postMessage({ data: report });
+  el("computer").hidden = false;
+  el("computer").textContent = "电脑观察记录已交回自有小程序；定位样本新鲜度和微信地图采用仍需独立验证。";
 }
 if (linkedConfig !== null) {
   el("config").value = linkedConfig;
