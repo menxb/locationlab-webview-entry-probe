@@ -3,6 +3,8 @@ import { createProbe, createRefreshController } from "./engine.mjs";
 const el = id => document.getElementById(id);
 const entryOptions = new URLSearchParams(location.hash.slice(1));
 const computerRun = entryOptions.get("computer");
+const webDebuggerEntry = ["webdebugger-serial", "webdebugger-stop"].includes(computerRun);
+const computerKind = webDebuggerEntry ? computerRun.slice("webdebugger-".length) : computerRun;
 let computerStarted = false;
 const events = [];
 const positionReceipts = [];
@@ -12,6 +14,7 @@ let miniapp = false;
 let configured = false;
 let configurationFailed = false;
 let bridgePageState;
+const canStart = () => configured && (miniapp || webDebuggerEntry);
 function createController(serial) {
   const build = serial ? createRefreshController : createProbe;
   const locate = (type, done) => {
@@ -72,8 +75,8 @@ function bridgeReady() {
   wx.miniProgram.getEnv(result => {
     miniapp = result.miniprogram === true;
     events.push({ event: "environment", ms: performance.now(), miniapp });
-    el("environment").textContent = miniapp ? "已确认在小程序内嵌网页中。" : "当前不是小程序内嵌网页，请通过自有小程序打开。";
-    el("start").disabled = !(miniapp && configured);
+    el("environment").textContent = miniapp ? "已确认在小程序内嵌网页中。" : webDebuggerEntry ? "当前为公众号网页电脑对照入口；不是小程序定位采用验证。" : "当前不是小程序内嵌网页，请通过自有小程序打开。";
+    el("start").disabled = !canStart();
     startComputerRun();
   });
 }
@@ -89,7 +92,7 @@ if (window.wx) {
     probe.stop("config_error");
     events.push({ event: "config_error", ms: performance.now(), errMsg: result.errMsg });
     el("permission").textContent = result.errMsg;
-    if (miniapp && ["serial", "stop"].includes(computerRun)) setTimeout(sendComputerReport, 0);
+    if ((miniapp || webDebuggerEntry) && ["serial", "stop"].includes(computerKind)) setTimeout(sendComputerReport, 0);
   });
 } else {
   el("permission").textContent = "微信 JS-SDK 未能加载。";
@@ -114,7 +117,7 @@ el("configure").onclick = () => {
     configured = true;
     events.push({ event: "config_ready", ms: performance.now() });
     el("permission").textContent = "JS-SDK 配置验证已返回就绪；定位权限以实际调用结果为准。";
-    el("start").disabled = !miniapp;
+    el("start").disabled = !canStart();
     startComputerRun();
   });
 };
@@ -127,6 +130,7 @@ function snapshot() {
     scope: "THIS_WEBVIEW_CALL_RESULTS_AND_LIFECYCLE_ONLY",
     clock_anchor: clockAnchor,
     miniapp_environment: miniapp,
+    entry_mode: webDebuggerEntry ? "EXPLICIT_WEB_DEBUGGER_DIAGNOSTIC" : "MINIAPP_ENTRY",
     jssdk_config_ready: configured,
     selected_mode: el("mode").value,
     map_foreground: "NOT_OBSERVED",
@@ -143,21 +147,21 @@ el("export").onclick = () => {
 };
 
 function startComputerRun() {
-  if (!["serial", "stop"].includes(computerRun) || computerStarted || !miniapp || !configured) return;
+  if (!["serial", "stop"].includes(computerKind) || computerStarted || !canStart()) return;
   computerStarted = true;
   el("computer").hidden = false;
-  el("computer").textContent = "本次为电脑自动运行，结束后向自有小程序交回定位回调和请求记录。";
+  el("computer").textContent = webDebuggerEntry ? "本次只在公众号网页调试器运行，记录留在当前页面。" : "本次为电脑自动运行，结束后向自有小程序交回定位回调和请求记录。";
   events.push({ event: "computer_run", ms: performance.now(), kind: computerRun });
   el("start").click();
-  if (computerRun === "stop") setTimeout(() => el("stop").click(), 25000);
-  setTimeout(sendComputerReport, computerRun === "stop" ? 40000 : 135000);
+  if (computerKind === "stop") setTimeout(() => el("stop").click(), 25000);
+  setTimeout(sendComputerReport, computerKind === "stop" ? 40000 : 135000);
 }
 function sendComputerReport() {
   const report = snapshot();
   el("report").value = JSON.stringify(report, null, 2);
-  wx.miniProgram.postMessage({ data: report });
+  if (miniapp) wx.miniProgram.postMessage({ data: report });
   el("computer").hidden = false;
-  el("computer").textContent = "电脑观察记录已交回自有小程序；定位样本新鲜度和微信地图采用仍需独立验证。";
+  el("computer").textContent = miniapp ? "电脑观察记录已交回自有小程序；定位样本新鲜度和微信地图采用仍需独立验证。" : `公众号网页本次已发出 ${requestSequence} 次请求，收到 ${positionReceipts.length} 次成功回调；原始记录留在下方，未上传。小程序采用尚未验证。`;
 }
 if (linkedConfig !== null) {
   el("config").value = linkedConfig;
