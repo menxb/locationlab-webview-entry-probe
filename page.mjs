@@ -1,10 +1,13 @@
-import { createProbe, createRefreshController } from "./engine.mjs";
+import { createProbe, createRefreshController } from "./engine.mjs?v=20261114-continuous";
 
 const el = id => document.getElementById(id);
 const entryOptions = new URLSearchParams(location.hash.slice(1));
 const computerRun = entryOptions.get("computer");
 const webDebuggerEntry = ["webdebugger-serial", "webdebugger-stop"].includes(computerRun);
 const h5ManualEntry = entryOptions.get("h5") === "manual";
+el("duration").value = h5ManualEntry ? "continuous" : "two-minutes";
+el("duration").onchange = () => { el("start").textContent = el("duration").value === "continuous" ? "开始持续刷新" : "开始两分钟运行"; };
+el("duration").onchange();
 const computerKind = webDebuggerEntry ? computerRun.slice("webdebugger-".length) : computerRun;
 let computerStarted = false;
 const events = [];
@@ -35,7 +38,7 @@ function updateWebDebuggerSummary() {
   const reasons = { budget: "达到两分钟，已停止", user: "已手动停止",
     document_hidden: "网页隐藏，已停止", bridge_background: "收到后台状态，已停止" };
   const status = state.running ? "运行中" : reasons[stop?.reason] || "已停止，原因见下方记录";
-  el("computer").textContent = `当前这一轮已发出 ${requests} 次请求，收到 ${successes} 次成功回调；${status}${state.pending ? "；仍有请求等待返回" : ""}。记录留在本页，未上传。小程序采用尚未验证。`;
+  el("computer").textContent = `本轮 ${requests} 次请求，${successes} 次成功；${status}${state.pending ? "；等待返回" : ""}。`;
 }
 function createController(serial) {
   const build = serial ? createRefreshController : createProbe;
@@ -70,6 +73,7 @@ function createController(serial) {
   record: event => {
     events.push(event);
     el("mode").disabled = event.running || event.pending || event.restore_required === true;
+    el("duration").disabled = event.running || event.pending || event.restore_required === true;
     el("events").textContent = events.slice(-12).map(row => JSON.stringify(row)).join("\n");
     const active = event.active === null ? "未知" : event.active ? "前台" : "后台";
     el("state").textContent = `网页${event.visible ? "可见" : "隐藏"}；${event.focused ? "有输入焦点" : "无输入焦点"}；页面状态提示：${active}。`;
@@ -99,7 +103,7 @@ function bridgeReady() {
   wx.miniProgram.getEnv(result => {
     miniapp = result.miniprogram === true;
     events.push({ event: "environment", ms: performance.now(), miniapp });
-    el("environment").textContent = miniapp ? "已确认在小程序内嵌网页中。" : h5ManualEntry ? "当前为微信普通网页入口。授权就绪后可点击开始；另一侧小程序的位置采用尚未验证。" : webDebuggerEntry ? "当前为公众号网页电脑对照入口；不是小程序定位采用验证。" : "当前不是小程序内嵌网页，请通过自有小程序打开。";
+    el("environment").textContent = miniapp ? "已确认在小程序内嵌网页中。" : h5ManualEntry ? "微信网页已连接。" : webDebuggerEntry ? "当前为公众号网页电脑对照入口；不是小程序定位采用验证。" : "当前不是小程序内嵌网页，请通过自有小程序打开。";
     el("start").disabled = !canStart();
     startComputerRun();
   });
@@ -140,13 +144,13 @@ el("configure").onclick = () => {
     }
     configured = true;
     events.push({ event: "config_ready", ms: performance.now() });
-    el("permission").textContent = "JS-SDK 配置验证已返回就绪；定位权限以实际调用结果为准。";
+    el("permission").textContent = "网页授权已就绪，可以开始。";
     el("start").disabled = !canStart();
     startComputerRun();
   });
 };
 const linkedConfig = entryOptions.get("wxconfig");
-el("start").onclick = () => probe.start();
+el("start").onclick = () => probe.start({ continuous: el("duration").value === "continuous" });
 el("stop").onclick = () => probe.stop("user");
 function snapshot() {
   return {
@@ -158,6 +162,7 @@ function snapshot() {
     entry_mode: h5ManualEntry ? "EXPLICIT_WECHAT_H5_MANUAL" : webDebuggerEntry ? "EXPLICIT_WEB_DEBUGGER_DIAGNOSTIC" : "MINIAPP_ENTRY",
     jssdk_config_ready: configured,
     selected_mode: el("mode").value,
+    selected_duration: el("duration").value,
     map_foreground: "NOT_OBSERVED",
     position_freshness: "NOT_ASSESSED",
     location_adoption: "NOT_ASSESSED",

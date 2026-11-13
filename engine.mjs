@@ -50,16 +50,16 @@ export function createProbe({ request, record, now, schedule, cancel }) {
   }
 
   return {
-    start() {
+    start({ continuous = false } = {}) {
       if (running || pending || !visible || active === false) {
         log("start_blocked");
         return;
       }
       running = true;
       generation += 1;
-      end = now() + 120000;
-      log("start", { duration_ms: 120000, interval_after_callback_ms: 10000 });
-      budgetTimer = schedule(() => stop("budget"), 120000);
+      end = continuous ? Infinity : now() + 120000;
+      log("start", { duration_ms: continuous ? null : 120000, interval_after_callback_ms: 10000 });
+      if (!continuous) budgetTimer = schedule(() => stop("budget"), 120000);
       send();
     },
     stop,
@@ -146,7 +146,7 @@ export function createRefreshController({ request, record, now, schedule, cancel
   }
 
   return {
-    start() {
+    start({ continuous = false } = {}) {
       if (running || pending || !available()) return log("start_blocked");
       if (restoreRequired) {
         log("restore_before_new_cycle");
@@ -155,9 +155,9 @@ export function createRefreshController({ request, record, now, schedule, cancel
       }
       running = true;
       generation += 1;
-      end = now() + 120000;
-      log("start", { duration_ms: 120000, sequence: ["wgs84", "gcj02"], interval_after_pair_ms: 10000 });
-      budgetTimer = schedule(() => stop("budget"), 120000);
+      end = continuous ? Infinity : now() + 120000;
+      log("start", { duration_ms: continuous ? null : 120000, sequence: ["wgs84", "gcj02"], interval_after_pair_ms: 10000 });
+      if (!continuous) budgetTimer = schedule(() => stop("budget"), 120000);
       send("wgs84", "cycle");
     },
     stop,
