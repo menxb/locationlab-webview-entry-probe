@@ -4,6 +4,7 @@ const el = id => document.getElementById(id);
 const entryOptions = new URLSearchParams(location.hash.slice(1));
 const computerRun = entryOptions.get("computer");
 const webDebuggerEntry = ["webdebugger-serial", "webdebugger-stop"].includes(computerRun);
+const h5ManualEntry = entryOptions.get("h5") === "manual";
 const computerKind = webDebuggerEntry ? computerRun.slice("webdebugger-".length) : computerRun;
 let computerStarted = false;
 const events = [];
@@ -14,9 +15,10 @@ let miniapp = false;
 let configured = false;
 let configurationFailed = false;
 let bridgePageState;
-const canStart = () => configured && (miniapp || webDebuggerEntry);
+let bridgeAvailable = false;
+const canStart = () => configured && (miniapp || webDebuggerEntry || (h5ManualEntry && bridgeAvailable));
 function updateWebDebuggerSummary() {
-  if (!webDebuggerEntry) return;
+  if (!webDebuggerEntry && !h5ManualEntry) return;
   el("computer").hidden = false;
   let start = -1;
   events.forEach((row, i) => { if (row.event === "start") start = i; });
@@ -92,11 +94,12 @@ window.addEventListener("blur", () => probe.focus(false));
 window.addEventListener("pagehide", () => probe.stop("pagehide"));
 
 function bridgeReady() {
+  bridgeAvailable = true;
   WeixinJSBridge.on("onPageStateChange", result => { bridgePageState = result.active; probe.pageState(result.active); });
   wx.miniProgram.getEnv(result => {
     miniapp = result.miniprogram === true;
     events.push({ event: "environment", ms: performance.now(), miniapp });
-    el("environment").textContent = miniapp ? "已确认在小程序内嵌网页中。" : webDebuggerEntry ? "当前为公众号网页电脑对照入口；不是小程序定位采用验证。" : "当前不是小程序内嵌网页，请通过自有小程序打开。";
+    el("environment").textContent = miniapp ? "已确认在小程序内嵌网页中。" : h5ManualEntry ? "当前为微信普通网页入口。授权就绪后可点击开始；另一侧小程序的位置采用尚未验证。" : webDebuggerEntry ? "当前为公众号网页电脑对照入口；不是小程序定位采用验证。" : "当前不是小程序内嵌网页，请通过自有小程序打开。";
     el("start").disabled = !canStart();
     startComputerRun();
   });
@@ -152,7 +155,7 @@ function snapshot() {
     clock_anchor: clockAnchor,
     captured_at: { wall_ms: Date.now(), performance_ms: performance.now() },
     miniapp_environment: miniapp,
-    entry_mode: webDebuggerEntry ? "EXPLICIT_WEB_DEBUGGER_DIAGNOSTIC" : "MINIAPP_ENTRY",
+    entry_mode: h5ManualEntry ? "EXPLICIT_WECHAT_H5_MANUAL" : webDebuggerEntry ? "EXPLICIT_WEB_DEBUGGER_DIAGNOSTIC" : "MINIAPP_ENTRY",
     jssdk_config_ready: configured,
     selected_mode: el("mode").value,
     map_foreground: "NOT_OBSERVED",
@@ -170,7 +173,7 @@ el("export").onclick = () => {
 };
 
 function startComputerRun() {
-  if (!["serial", "stop"].includes(computerKind) || computerStarted || !canStart()) return;
+  if (h5ManualEntry || !["serial", "stop"].includes(computerKind) || computerStarted || !canStart()) return;
   computerStarted = true;
   el("computer").hidden = false;
   el("computer").textContent = webDebuggerEntry ? "本次只在公众号网页调试器运行，记录留在当前页面。" : "本次为电脑自动运行，结束后向自有小程序交回定位回调和请求记录。";
