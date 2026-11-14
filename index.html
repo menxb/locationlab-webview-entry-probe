@@ -15,7 +15,7 @@ h1{font-size:22px;margin:6px 0}textarea,button,select{font:inherit;box-sizing:bo
 <div><button id="start" disabled>开始两分钟运行</button><button id="stop">停止</button></div>
 <p id="computer" hidden></p>
 <p id="position" aria-live="polite">尚未收到定位坐标。</p>
-<p>目标位置请看另一侧页面。隐藏本页或点击停止会结束刷新。</p>
+<p>目标位置请看另一侧页面。离开时暂停，返回后自动继续；点击停止可保持停止。</p>
 <p id="state"></p>
 <details>
   <summary>授权设置（通常无需操作）</summary>
@@ -26,7 +26,7 @@ h1{font-size:22px;margin:6px 0}textarea,button,select{font:inherit;box-sizing:bo
 <details><summary>诊断与记录</summary>
 <p><label>操作：<select id="mode"><option value="serial">串行 WGS84 → GCJ02</option><option value="baseline">只观察 GCJ02（对照）</option></select></label></p>
 <p>每对请求结束后等待十秒。失败或明确命中缓存时停止循环，必要时只尝试一次 GCJ02 收尾。请求完成不代表另一侧目标已采用。</p>
-<p>失去输入焦点时继续；网页隐藏或收到后台状态时停止。若隐藏期间尚有 WGS84 请求，重新显示后点击开始会先尝试 GCJ02 收尾，再由你决定是否开始新一轮。前台提示缺失时记为“未知”。</p>
+<p>失去输入焦点时继续；网页隐藏或收到后台状态时停止。自动入口返回前台时会更新将过期的授权，并在必要的 GCJ02 收尾后恢复刷新；手动停止后不会自行重启。前台提示缺失时记为“未知”。</p>
 <pre id="events"></pre>
 <button id="export">显示可复制记录</button>
 <textarea id="report" rows="8" readonly aria-label="可复制记录"></textarea>
