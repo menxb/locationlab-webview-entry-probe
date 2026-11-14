@@ -10,7 +10,7 @@ h1{font-size:22px;margin:6px 0}textarea,button,select{font:inherit;box-sizing:bo
 <h1>位置刷新</h1>
 <p>与目标页面分屏显示，保持两侧可见。</p>
 <p id="environment">正在确认小程序网页环境。</p>
-<p id="permission">网页定位权限尚未验证。</p>
+<p id="permission">正在准备网页授权。</p>
 <label>运行时间：<select id="duration"><option value="continuous">持续运行，手动停止</option><option value="two-minutes" selected>两分钟</option></select></label>
 <div><button id="start" disabled>开始两分钟运行</button><button id="stop">停止</button></div>
 <p id="computer" hidden></p>
@@ -18,7 +18,7 @@ h1{font-size:22px;margin:6px 0}textarea,button,select{font:inherit;box-sizing:bo
 <p>目标位置请看另一侧页面。隐藏本页或点击停止会结束刷新。</p>
 <p id="state"></p>
 <details>
-  <summary>配置网页授权</summary>
+  <summary>授权设置（通常无需操作）</summary>
   <p>粘贴自有服务为当前网页生成的 JS-SDK 授权信息。仅需 appId、timestamp、nonceStr、signature；不要粘贴 AppSecret 或 jsapi_ticket。</p>
   <textarea id="config" rows="5" aria-label="网页授权信息"></textarea>
   <button id="configure" disabled>验证网页授权</button>
@@ -34,5 +34,5 @@ h1{font-size:22px;margin:6px 0}textarea,button,select{font:inherit;box-sizing:bo
 <p>回调记录只留在当前页面内存，页面不另行上传。接收时间不是采样时间，迟到或重复回调原样保留。</p>
 </details>
 <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
-<script type="module" src="./page.mjs?v=20261114-continuous"></script>
+<script type="module" src="./page.mjs?v=20261115-phone-entry"></script>
 </html>
