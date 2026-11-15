@@ -1,20 +1,20 @@
 {
   "schema": "locationlab.phone-authorization.v1",
-  "issued_at": 1794738640,
+  "issued_at": 1794740440,
   "expires_at": 1794745841,
   "entry_url": "https://menxb.github.io/locationlab-webview-entry-probe/#h5=auto",
   "entries": {
     "https://menxb.github.io/locationlab-webview-entry-probe/": {
       "appId": "wx312d7596b17a1626",
-      "timestamp": 1794738640,
-      "nonceStr": "DgNfyEg-Q5I0YLrRLCU6_qp4",
-      "signature": "c0da07730475ca915eb0f5d31bf75d63629f2c97"
+      "timestamp": 1794740440,
+      "nonceStr": "mKMZIZjQAW0Xc0AisOyoubJU",
+      "signature": "7dc72e7b4a7ac96ce8fecbe362c3e9c029d47341"
     },
     "https://menxb.github.io/locationlab-webview-entry-probe/?wxentry=1794587975": {
       "appId": "wx312d7596b17a1626",
-      "timestamp": 1794738640,
-      "nonceStr": "OVyjCB1EUNq49YYTlREPyLTs",
-      "signature": "69f94bf56b9e10dae325599507331662b780fc86"
+      "timestamp": 1794740440,
+      "nonceStr": "nmBh5Kr6q1NAl1F3cnifErO2",
+      "signature": "c660c1d5f7276f123e23c8d9f7964c07d42ab329"
     }
   }
 }
