@@ -18,6 +18,7 @@ let requestSequence = 0;
 const clockAnchor = { wall_ms: Date.now(), performance_ms: performance.now() };
 let miniapp = false;
 let configured = false;
+let configurationAttempted = false;
 let configurationFailed = false;
 let bridgePageState;
 let bridgeAvailable = false;
@@ -160,10 +161,14 @@ if (window.wx) {
 }
 
 el("configure").onclick = () => {
+  // JS-SDK 1.6 keeps its ready state across config calls. A new phone
+  // authorization therefore needs a new page, not a second config in this one.
+  if (phoneAutoEntry && configurationAttempted) return location.reload();
   let config;
   try { config = JSON.parse(el("config").value); }
   catch { el("permission").textContent = "授权信息不是有效的 JSON。"; return; }
   configured = false;
+  configurationAttempted = true;
   configurationFailed = false;
   el("configure").disabled = true;
   el("start").disabled = true;
@@ -189,12 +194,12 @@ el("start").onclick = () => {
   phoneStarted = true;
   probe.start({ continuous: el("duration").value === "continuous" });
 };
-el("stop").onclick = () => { phoneUserStopped = true; phoneStarted = false; probe.stop("user"); };
+el("stop").onclick = () => { phoneUserStopped = true; phoneStarted = false; clearTimeout(renewalTimer); probe.stop("user"); };
 el("reconnect").disabled = false;
 el("reconnect").onclick = () => {
   phoneUserStopped = false;
   phoneStarted = false;
-  if (requestNeedsReload || !window.wx) return location.reload();
+  if (phoneAutoEntry || requestNeedsReload || !window.wx) return location.reload();
   refreshPhoneAuthorization();
 };
 
@@ -206,15 +211,18 @@ function startPhoneRun() {
 }
 
 function activatePhonePage() {
-  if (!configured || publicAuthorizationExpires * 1000 <= Date.now() + 120000) return refreshPhoneAuthorization();
+  if (phoneUserStopped) return;
+  if (!configurationAttempted) return refreshPhoneAuthorization();
+  if (!configured) return;
+  if (publicAuthorizationExpires * 1000 <= Date.now() + 120000) return location.reload();
   scheduleAuthorizationRenewal();
   startPhoneRun();
 }
 
 function scheduleAuthorizationRenewal() {
   clearTimeout(renewalTimer);
-  if (!phoneAutoEntry || document.visibilityState !== "visible") return;
-  renewalTimer = setTimeout(refreshPhoneAuthorization,
+  if (!phoneAutoEntry || phoneUserStopped || document.visibilityState !== "visible") return;
+  renewalTimer = setTimeout(() => location.reload(),
     Math.max(30000, publicAuthorizationExpires * 1000 - Date.now() - 120000));
 }
 
