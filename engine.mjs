@@ -92,6 +92,7 @@ export function createRefreshController({ request, record, now, schedule, cancel
   let end = 0;
   let nextTimer;
   let budgetTimer;
+  let requestTimer;
   let restoreRequired = false;
 
   const available = () => visible && active !== false;
@@ -113,8 +114,14 @@ export function createRefreshController({ request, record, now, schedule, cancel
     pending = token;
     if (type === "wgs84") restoreRequired = true;
     log("request", { id: token.id, requested_type: type, purpose });
+    requestTimer = schedule(() => {
+      if (pending === token) stop("request_timeout");
+      // The SDK has no cancellation acknowledgement. Keep pending occupied:
+      // declaring it free and retrying would overlap the original request.
+    }, 30000);
     request(type, (status, result = {}) => {
       if (pending !== token) return log("duplicate_callback", { id: token.id });
+      cancel(requestTimer);
       pending = null;
       const late = token.generation !== generation;
       const usable = status === "success" && result.cached !== true;

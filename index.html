@@ -12,7 +12,7 @@ h1{font-size:22px;margin:6px 0}textarea,button,select{font:inherit;box-sizing:bo
 <p id="environment">正在确认小程序网页环境。</p>
 <p id="permission">正在准备网页授权。</p>
 <label>运行时间：<select id="duration"><option value="continuous">持续运行，手动停止</option><option value="two-minutes" selected>两分钟</option></select></label>
-<div><button id="start" disabled>开始两分钟运行</button><button id="stop">停止</button></div>
+<div><button id="start" disabled>开始两分钟运行</button><button id="stop">停止</button><button id="reconnect" disabled>重新连接并开始</button></div>
 <p id="computer" hidden></p>
 <p id="position" aria-live="polite">尚未收到定位坐标。</p>
 <p>目标位置请看另一侧页面。离开时暂停，返回后自动继续；点击停止可保持停止。</p>
@@ -26,7 +26,7 @@ h1{font-size:22px;margin:6px 0}textarea,button,select{font:inherit;box-sizing:bo
 <details><summary>诊断与记录</summary>
 <p><label>操作：<select id="mode"><option value="serial">串行 WGS84 → GCJ02</option><option value="baseline">只观察 GCJ02（对照）</option></select></label></p>
 <p>每对请求结束后等待十秒。失败或明确命中缓存时停止循环，必要时只尝试一次 GCJ02 收尾。请求完成不代表另一侧目标已采用。</p>
-<p>失去输入焦点时继续；网页隐藏或收到后台状态时停止。自动入口返回前台时会更新将过期的授权，并在必要的 GCJ02 收尾后恢复刷新；手动停止后不会自行重启。前台提示缺失时记为“未知”。</p>
+<p>失去输入焦点时继续；网页隐藏或收到后台状态时停止。自动入口在前台更新将过期的授权，返回前台时也会检查；手动停止后不会自行重启。定位30秒未返回会提示重新连接，期间不会叠加新请求。前台提示缺失时记为“未知”。</p>
 <pre id="events"></pre>
 <button id="export">显示可复制记录</button>
 <textarea id="report" rows="8" readonly aria-label="可复制记录"></textarea>
@@ -34,5 +34,6 @@ h1{font-size:22px;margin:6px 0}textarea,button,select{font:inherit;box-sizing:bo
 <p>回调记录只留在当前页面内存，页面不另行上传。接收时间不是采样时间，迟到或重复回调原样保留。</p>
 </details>
 <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
-<script type="module" src="./page.mjs?v=20261115-phone-entry"></script>
+<script>globalThis.LOCATIONLAB_AUTHORIZATION_URL = "https://192.220.114.55:8443/locationlab/phone-auth.json";</script>
+<script type="module" src="./page.mjs?v=20261117-service"></script>
 </html>

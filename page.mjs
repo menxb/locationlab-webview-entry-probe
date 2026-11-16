@@ -1,4 +1,4 @@
-import { createProbe, createRefreshController } from "./engine.mjs?v=20261114-continuous";
+import { createProbe, createRefreshController } from "./engine.mjs?v=20261116-recovery";
 
 const el = id => document.getElementById(id);
 const entryOptions = new URLSearchParams(location.hash.slice(1));
@@ -25,7 +25,9 @@ let phoneStarted = false;
 let phoneUserStopped = false;
 let publicAuthorizationExpires = 0;
 let authorizationRequest = null;
-const canStart = () => configured && (miniapp || webDebuggerEntry || (phoneEntry && bridgeAvailable));
+let renewalTimer;
+let requestNeedsReload = false;
+const canStart = () => !requestNeedsReload && configured && (miniapp || webDebuggerEntry || (phoneEntry && bridgeAvailable));
 function updateWebDebuggerSummary() {
   if (!webDebuggerEntry && !phoneEntry) return;
   el("computer").hidden = false;
@@ -42,7 +44,9 @@ function updateWebDebuggerSummary() {
   const states = session.filter(row => typeof row.running === "boolean");
   const state = states[states.length - 1];
   const reasons = { budget: "达到两分钟，已停止", user: "已手动停止",
-    document_hidden: "网页隐藏，已停止", bridge_background: "收到后台状态，已停止" };
+    document_hidden: "网页隐藏，已停止", bridge_background: "收到后台状态，已停止",
+    request_timeout: "定位超过30秒未返回，已暂停；点重新连接",
+    authorization_unavailable: "授权更新失败，已停止；点重新连接" };
   const status = state.running ? "运行中" : reasons[stop?.reason] || "已停止，原因见下方记录";
   el("computer").textContent = `本轮 ${requests} 次请求，${successes} 次成功；${status}${state.pending ? "；等待返回" : ""}。`;
 }
@@ -78,6 +82,11 @@ function createController(serial) {
   request: serial ? locate : done => locate("gcj02", done),
   record: event => {
     events.push(event);
+    if (event.event === "stop" && event.reason === "request_timeout") {
+      requestNeedsReload = true;
+      el("start").disabled = true;
+      el("permission").textContent = "定位请求30秒未返回。请点“重新连接并开始”；旧坐标不代表本次成功。";
+    }
     if (phoneAutoEntry && event.event === "stop") {
       if (["document_hidden", "bridge_background", "pagehide", "reconfigure"].includes(event.reason)) phoneStarted = false;
       if (event.reason === "gcj_request_completed_after_stop") {
@@ -107,7 +116,11 @@ probe.visibility(document.visibilityState === "visible");
 probe.focus(document.hasFocus());
 document.addEventListener("visibilitychange", () => {
   probe.visibility(document.visibilityState === "visible");
+  if (document.visibilityState !== "visible") clearTimeout(renewalTimer);
   if (document.visibilityState === "visible" && phoneAutoEntry) activatePhonePage();
+});
+window.addEventListener("online", () => {
+  if (phoneAutoEntry && document.visibilityState === "visible" && !phoneUserStopped) activatePhonePage();
 });
 window.addEventListener("focus", () => probe.focus(true));
 window.addEventListener("blur", () => probe.focus(false));
@@ -177,6 +190,13 @@ el("start").onclick = () => {
   probe.start({ continuous: el("duration").value === "continuous" });
 };
 el("stop").onclick = () => { phoneUserStopped = true; phoneStarted = false; probe.stop("user"); };
+el("reconnect").disabled = false;
+el("reconnect").onclick = () => {
+  phoneUserStopped = false;
+  phoneStarted = false;
+  if (requestNeedsReload || !window.wx) return location.reload();
+  refreshPhoneAuthorization();
+};
 
 function startPhoneRun() {
   if (!phoneAutoEntry || phoneStarted || phoneUserStopped || !canStart()
@@ -186,16 +206,27 @@ function startPhoneRun() {
 }
 
 function activatePhonePage() {
-  if (publicAuthorizationExpires * 1000 <= Date.now() + 120000) return refreshPhoneAuthorization();
+  if (!configured || publicAuthorizationExpires * 1000 <= Date.now() + 120000) return refreshPhoneAuthorization();
+  scheduleAuthorizationRenewal();
   startPhoneRun();
+}
+
+function scheduleAuthorizationRenewal() {
+  clearTimeout(renewalTimer);
+  if (!phoneAutoEntry || document.visibilityState !== "visible") return;
+  renewalTimer = setTimeout(refreshPhoneAuthorization,
+    Math.max(30000, publicAuthorizationExpires * 1000 - Date.now() - 120000));
 }
 
 function refreshPhoneAuthorization() {
   if (authorizationRequest) return authorizationRequest;
   el("permission").textContent = "正在自动更新网页授权…";
   authorizationRequest = (async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
     try {
-      const response = await fetch(`./phone-auth.json?t=${Math.floor(Date.now() / 60000)}`, { cache: "no-store" });
+      const endpoint = globalThis.LOCATIONLAB_AUTHORIZATION_URL || "./phone-auth.json";
+      const response = await fetch(`${endpoint}?t=${Math.floor(Date.now() / 60000)}`, { cache: "no-store", signal: controller.signal });
       if (!response.ok) throw new Error("授权更新服务暂不可用，请稍后重新打开。");
       const authorization = await response.json();
       if (h5ManualEntry && linkedConfig !== null) {
@@ -208,12 +239,13 @@ function refreshPhoneAuthorization() {
       publicAuthorizationExpires = authorization.expires_at;
       el("config").value = JSON.stringify(config);
       el("configure").onclick();
+      scheduleAuthorizationRenewal();
     } catch (error) {
       configured = false;
       el("start").disabled = true;
       probe.stop("authorization_unavailable");
-      el("permission").textContent = error.message;
-    } finally { authorizationRequest = null; }
+      el("permission").textContent = error.name === "AbortError" ? "授权连接超时，请点“重新连接并开始”。" : error.message;
+    } finally { clearTimeout(timeout); authorizationRequest = null; }
   })();
   return authorizationRequest;
 }
